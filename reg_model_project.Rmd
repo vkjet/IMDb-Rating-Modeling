@@ -1,0 +1,127 @@
+---
+title: "Modeling and prediction for movies"
+student: Valeriy Kondruk
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+### Load data
+
+```{r load-data}
+load("movies.Rdata")
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+We have acquired data about how much audiences and critics like movies as well as numerous other variables about the movies. This dataset includes information from Rotten Tomatoes and IMDB for a random sample of movies.
+
+We're interested in learning what attributes make a movie popular. 
+
+The data set is comprised of 651 randomly sampled movies produced and released before 2016, and scored on both Rotten Tomatoes and IMDB.
+
+We deal with a retrospective observational study with random sampling and with no random assignment here. Which means that we cannot make causal conclusions based on this data. However, we can use this data for making correlation statements, and the results of our findings can be generalized to the whole population of movies released before 2016 and scored on both Rotten Tomatoes and IMDB.
+
+* * *
+
+## Part 2: Research question
+
+###Without watching a movie, can we predict if the audience would love it?
+
+Obviously, the popularity of a movie is mainly based on its content and the art value it offers. Those two factors are very hard if not impossible to calculate, though. However, there are certain characteristics of a movie that we can calculate and classify comparatively easy. Among others, those are genre, duration, and a cast quality. Using those and other variables from the data frame, we'll try creating a prediction model for a movie papularity among the audience.
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+We start our analysis with a high level overview of the data frame provided. The table below shows the number of movies of three major types (Documentary, Feature Film, and TV Movie) in the data set, the time range of theatre releases (*thtr_rel_year*), as well as the median audience rating on both IMDB (*imdb_rating*) and Rotten Tomatoes (*audience_score*). We choose median instead of mean for the audience rating as we suspect the rating distributions are skewed and median is a more robust statistics for skewed distributions.   
+
+```{r}
+movies %>%
+  group_by(title_type) %>%
+  summarise(n(), min(thtr_rel_year), max(thtr_rel_year), median(imdb_rating), median(audience_score))
+```
+*Table 1. Movies statistics grouped by the tytle type*  
+  
+We can see the majority of movies in the data set belongs to the 'Feature Film' group. 55 movies are Documentaries and only 5 are TV Movies.  
+
+It's expected that the popularity of movies in these three major groups would depend on very different factors. This partially confirmed by the significant difference between median rating of Featured Films and two other groups. Thus, we decided to deal only with the most populous group of movies in this data set, Featured Films. We then create a subset (*ff* for Feature Film) of the data frame and use it from now: 
+
+```{r}
+ff <- movies %>%
+  filter(title_type == 'Feature Film')
+```
+
+Let's take a look at the data summary now (we exclude some variables from the summary to make the report shorter):  
+
+```{r}
+summary(ff[3:24])
+```
+  
+The variables of most interest are related to movies rating: audience rating on IMDB (*imdb_rating*), critics score on Rotten Tomatoes (*critics_score*), and audience score on Rotten Tomatoes (*audience_score*). We can see that median statistics for all three variables are higher than respective mean statistics. This proves our early assumption of the skeweness of the rating distributions. In fact, all three distributions are **left skewed**. This can also be demonstrated with the following histograms:  
+  
+```{r}
+hist(ff$imdb_rating, main = 'Plot 1. IMDB rating distribution', col = 'orange')
+hist(ff$critics_score, main = 'Plot 2. Rotten Tomatoes critics score distribution', col = 'orange')
+hist(ff$audience_score, main = 'Plot 3. Rotten Tomatoes audience score distribution', col = 'orange')
+```
+  
+Interesting that IMDB rating shows a unimodal left skewed distribution centered around 6.4 (Plot 1) but both scores on Rotten Tomatoes show almost a uniform distribution with a slight left skew and no apparent centers (Plot 2 and 3). This discrepancy could be explained by the larger number of voting users on IMDb so the true population mean is more obvious. But this is questionable as we don't have data on the number of votes for Rotten Tomatoes scores. 
+
+We can also conclude that **IMDB users are less likely to give a low rating to a movie** than Rotten Tomatoes users and critics. Indeed, 75% of movies received a rating of 58.5 (or 5.85 on a scale of 1 to 10) or higher on IMDB, 44.5 or higher from the audience on RT, and only 31 or higher from the critics on RT. 
+
+However, the most plausible cause of the diferencies in distributions lies in methods of calculating rating and scores on two platforms:    
+  
+* IMDb registered users can cast a vote (from 1 to 10) on every released title in the database. Individual votes are then aggregated and summarized as a single IMDb rating, visible on the title’s main page. 
+* Rotten Tomatoes critics score represents the percentage of professional critic reviews that are positive for a given film.
+* Rotten Tomatoes audience score is the percentage of users who have rated the movie positively (a star rating of 3.5 or higher out of 5 stars). 
+  
+Basically, **the Rotten Tomatoes score only counts positive rates while IMDb rating counts all rates**. 
+
+For example, an audience score of 25% on Rotten Tomatoes can be translated to an IMDb rating between 2.5 and 7.5 depending on individual ratings that made up that 25% score on RT. In other words, in the plots above we do not compare apples to apples (or we should say tomatoes to tomatoes).
+
+
+
+
+  
+  
+
+
+
+* * *
+
+## Part 4: Modeling
+
+NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
+button above. Make sure that your code is visible in the project you submit. 
+Delete this note when before you submit your work.
+
+* * *
+
+## Part 5: Prediction
+
+NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
+button above. Make sure that your code is visible in the project you submit. 
+Delete this note when before you submit your work.
+
+* * *
+
+## Part 6: Conclusion
+
