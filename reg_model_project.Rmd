@@ -1,6 +1,6 @@
 ---
 title: "Modeling and prediction for movies"
-student: Valeriy Kondruk
+author: Valeriy Kondruk
 output: 
   html_document: 
     fig_height: 4
