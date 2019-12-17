@@ -16,6 +16,7 @@ output:
 library(ggplot2)
 library(dplyr)
 library(statsr)
+library(GGally)
 ```
 
 ### Load data
@@ -30,19 +31,19 @@ load("movies.Rdata")
 
 ## Part 1: Data
 
-We have acquired data about how much audiences and critics like movies as well as numerous other variables about the movies. This dataset includes information from Rotten Tomatoes and IMDB for a random sample of movies.
+We have acquired data about how much audiences and critics like movies as well as numerous other variables about the movies. This dataset includes information from Rotten Tomatoes and IMDb for a random sample of movies.
 
 We're interested in learning what attributes make a movie popular. 
 
-The data set is comprised of 651 randomly sampled movies produced and released before 2016, and scored on both Rotten Tomatoes and IMDB.
+The data set is comprised of 651 randomly sampled movies produced and released before 2016, and scored on both Rotten Tomatoes and IMDb.
 
-We deal with a retrospective observational study with random sampling and with no random assignment here. Which means that we cannot make causal conclusions based on this data. However, we can use this data for making correlation statements, and the results of our findings can be generalized to the whole population of movies released before 2016 and scored on both Rotten Tomatoes and IMDB.
+We deal with a retrospective observational study with random sampling and with no random assignment here. Which means that we cannot make causal conclusions based on this data. However, we can use this data for making correlation statements, and the results of our findings can be generalized to the whole population of movies released before 2016 and scored on both Rotten Tomatoes and IMDb.
 
 * * *
 
 ## Part 2: Research question
 
-###Without watching a movie, can we predict if the audience would love it?
+### Without watching a movie, can we say wether the audience love it?
 
 Obviously, the popularity of a movie is mainly based on its content and the art value it offers. Those two factors are very hard if not impossible to calculate, though. However, there are certain characteristics of a movie that we can calculate and classify comparatively easy. Among others, those are genre, duration, and a cast quality. Using those and other variables from the data frame, we'll try creating a prediction model for a movie papularity among the audience.
 
@@ -51,7 +52,7 @@ Obviously, the popularity of a movie is mainly based on its content and the art 
 
 ## Part 3: Exploratory data analysis
 
-We start our analysis with a high level overview of the data frame provided. The table below shows the number of movies of three major types (Documentary, Feature Film, and TV Movie) in the data set, the time range of theatre releases (*thtr_rel_year*), as well as the median audience rating on both IMDB (*imdb_rating*) and Rotten Tomatoes (*audience_score*). We choose median instead of mean for the audience rating as we suspect the rating distributions are skewed and median is a more robust statistics for skewed distributions.   
+We start our analysis with a high level overview of the data frame provided. The table below shows the number of movies of three major types (Documentary, Feature Film, and TV Movie) in the data set, the time range of theatre releases (`thtr_rel_year`), as well as the median audience rating on both IMDB (`imdb_rating`) and Rotten Tomatoes (`audience_score`). We choose median instead of mean for the audience rating as we suspect the rating distributions are skewed and median is a more robust statistics for skewed distributions.   
 
 ```{r}
 movies %>%
@@ -75,7 +76,7 @@ Let's take a look at the data summary now (we exclude some variables from the su
 summary(ff[3:24])
 ```
   
-The variables of most interest are related to movies rating: audience rating on IMDB (*imdb_rating*), critics score on Rotten Tomatoes (*critics_score*), and audience score on Rotten Tomatoes (*audience_score*). We can see that median statistics for all three variables are higher than respective mean statistics. This proves our early assumption of the skeweness of the rating distributions. In fact, all three distributions are **left skewed**. This can also be demonstrated with the following histograms:  
+The variables of most interest are related to movies rating: audience rating on IMDB (`imdb_rating`), critics score on Rotten Tomatoes (`critics_score`), and audience score on Rotten Tomatoes (`audience_score`). We can see that median statistics for all three variables are higher than respective mean statistics. This proves our early assumption of the skeweness of the rating distributions. In fact, all three distributions are **left skewed**. This can also be demonstrated with the following histograms:  
   
 ```{r}
 hist(ff$imdb_rating, main = 'Plot 1. IMDB rating distribution', col = 'orange')
@@ -96,22 +97,245 @@ However, the most plausible cause of the diferencies in distributions lies in me
 Basically, **the Rotten Tomatoes score only counts positive rates while IMDb rating counts all rates**. 
 
 For example, an audience score of 25% on Rotten Tomatoes can be translated to an IMDb rating between 2.5 and 7.5 depending on individual ratings that made up that 25% score on RT. In other words, in the plots above we do not compare apples to apples (or we should say tomatoes to tomatoes).
-
-
-
-
   
-  
+Let's take a look at the median statistics for feature films grouped by genre:  
 
+```{r}
+ff %>%
+  group_by(genre) %>%
+  summarise(total = n(), IMDb = median(imdb_rating), RT_critics = median(critics_score), RT_audience = median(audience_score))
+```
+*Table 2. Feature Films rating and scores medians by genre*
+
+We can see that Drama is the most populous category with more than half movies of the data set and median IMDb rating of 6.80, RT critics score of 67, and RT audience score of 70. The highest median IMDb rating of 7.25 is in Musical & Performing Arts category. This group also has the highest scores of all on RT among both critics and audience. We need to note that only 8 movies fall in this group, so this stats can be quite different for a larger sample. The Comedy group has the lowest median IMDb rating of all, 5.70, second to lowest for RT critics and third to lowest for RT audience.
+  
+It's interesting to see the distribution of movies runtime:
+
+```{r}
+hist(ff$runtime, main = 'Plot 4. Feature Films runtime distribution', xlab = 'Runtime in minutes', col = 'orange')
+```
+  
+Here we can see a right skewed unimodal distribution centered around 100 minutes with several outliers.  
 
 
 * * *
 
 ## Part 4: Modeling
 
-NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
-button above. Make sure that your code is visible in the project you submit. 
-Delete this note when before you submit your work.
+The data set contains several variables on movies: title, runtime, date of release, production company, cast, nominations, ratings, and scores. We'd love to predict the popularity of the movie (represented by the IMDb rating, Rotten Tomatoes critics and audience scores) based on a certain combination of the rest of the variables using a multiple linear regression method.
+
+We will start with modelling where response variable is IMDb rating (`imdb_rating`).
+
+### IMDb rating prediction model
+
+Developing a full model as a reference to all future models would be a good first step. The full model includes all potential predictor variables. However, we would omit some of the variables as they are only in data set for informational purposes and do not make any sense to include in a statistical analysis. 
+  
+Here's a list of variables we can ommit:  
+
+* The information in the `director`, and `actor1` through `actor5` variables was used to determine whether the movie casts a director, an actor or actress who won Oscar. 
+* Variable like `imdb_url` and `rt_url` obviously cannot be associated with the popularity of a movie, thus should be ommited. 
+* Wording of a `title` of the movie by itself is meaningless for answering the research question. But we can try using a title length as a predictor.
+* We can omit the `title_type` variable as we only work with Feature Film here.
+* The actual day of the month of the theatrical (`thtr_rel_day`) or dvd (`dvd_rel_day`) release is also meanengless for predicting movie's popularity. We can think of some correlation between a month or year and a movie popularity. We suspect it's going to be low if any, though. 
+* We should also omit `critics_rating` and `audience_rating` variables as they are basically the derivatives of `critics_score` and `audience_score` variables respectively. So, they are obviously collinear and adding more than one of these variables to the model would not add much value to the model.
+
+The question is **whether we should use Rotten Tomatoes scores in predicting IMDb rating** and vice versa. Technically speaking, a popular movie would rate high on both platforms (it's not always the case, though). This means that rating on IMDb would have a positive correlation with audience score on RT despite the fact they are calculated differently. We can check if this is the case by calculating a correlation coefficient:
+
+```{r}
+cor(y = ff$imdb_rating, x = ff$audience_score)
+
+ff %>%
+  ggplot(aes(y = imdb_rating*10, x = audience_score)) +
+  geom_jitter(col = 'orange') +
+  labs(title = 'Plot 5. Correlation plot for IMDb rating and RT audience score') +
+  geom_smooth(method = lm)
+
+plot_ss(y = imdb_rating*10, x = audience_score, data = ff) +
+  title(main = "Plot 6. Plot of residuals")
+
+m_obs <- lm(imdb_rating ~ audience_score, data = ff)
+
+ggplot(data = m_obs, aes(x = .fitted, y = .resid)) +
+  geom_jitter() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(title = "Plot 7. Residuals vs fitted", xlab = "Fitted values", ylab = "Residuals")
+
+ggplot(data = m_obs, aes(x = .resid)) +
+  geom_histogram(binwidth = 0.5, fill = "orange", colour = "black") +
+  xlab("Residuals") +
+  ggtitle("Plot 8. Residulas distribution")
+
+ggplot(data = m_obs, aes(sample = .resid)) +
+  stat_qq(col = "orange") +
+  ggtitle("Plot 9. Normal probability plot of the residuals")
+
+```
+
+Indeed, we can see that the correlation coefficient is very high (~0.85) and positive. However, the variance doesn't seem to be constant (little variance for popular movies and larger variance for unpopular movies) for the reason discussed in Part 3. There's definitely a correlation between these two variables but it's not linear. 
+
+The previous assumption is even more apparent with RT critics score and critics rating variables plotted against IMDb audience rating (Plots 10-13):  
+
+```{r}
+ff %>%
+  ggplot(aes(y = imdb_rating*10, x = critics_score)) +
+  geom_jitter(col = 'orange') +
+  labs(title = 'Plot 10. Correlation plot for IMDb rating and RT critics score') +
+  geom_smooth(method = lm)
+
+m_obs3 <- lm(imdb_rating ~ critics_score, data = ff)
+
+ggplot(data = m_obs3, aes(x = .fitted, y = .resid)) +
+  geom_jitter() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(title = "Plot 11. Residuals vs fitted for imdb_rating/critics_score pair", xlab = "Fitted values", ylab = "Residuals")
+
+ff %>%
+  ggplot(aes(y = imdb_rating*10, x = critics_rating)) +
+  geom_jitter(col = 'orange') +
+  labs(title = 'Plot 12. Correlation plot for IMDb rating and RT critics rating') +
+  geom_smooth(method = lm)
+
+m_obs4 <- lm(imdb_rating ~ critics_rating, data = ff)
+
+ggplot(data = m_obs4, aes(x = .fitted, y = .resid)) +
+  geom_jitter() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(title = "Plot 13. Residuals vs fitted for imdb_rating/critics_rating pair", xlab = "Fitted values", ylab = "Residuals")
+```
+
+The funnels we see is a perfect illustration of non-constant variability described earlier. Thus **we shouldn't be using RT scores in predicting IMDb rating using multiple linear regression**.  
+
+The **full model** should then look like this:
+
+```{r}
+imdb_full <- lm(data = na.omit(ff), imdb_rating ~ genre + runtime + mpaa_rating + thtr_rel_year + thtr_rel_month + dvd_rel_year + dvd_rel_month + imdb_num_votes + best_pic_nom + best_pic_win + best_actor_win + best_actress_win + best_dir_win + top200_box)
+
+summary(imdb_full)
+```
+
+The full model includes all variables that we believe meaningful. It has an adjusted R^2^ of **`summary(imdb_full)$adj.r.squared`** which means that the model explains aproximately 36% of variance in the respose variable (`imdb_rating` in this case). Let's see if we can come up with a model of higher predicting power by changing a combination of predictors.    
+
+We'll be using a **forward selection** technique here. The forward selection model starts with an empty model. Then, we add variables one-at-a-time until we cannot find any variables that improve the model (as measured by adjusted R^2^).  
+
+```{r}
+# Forward selection based on adjusted r squared
+
+# Create a subset of data that only includes variables we're interested in
+
+ff_imdb <- subset(na.omit(ff), select = c("imdb_rating", "genre", "runtime", "mpaa_rating", "thtr_rel_year", "thtr_rel_month", "dvd_rel_year", "dvd_rel_month", "imdb_num_votes", "best_pic_nom", "best_pic_win", "best_actor_win", "best_actress_win", "best_dir_win", "top200_box"))
+
+bestformula <- "imdb_rating ~" #starting point
+
+result <- 0
+bestresult <- 0
+cycle = 2 #start with 2nd column of a data frame
+
+while (cycle < ncol(ff_imdb)) {
+  i = 2 #start with 2nd column of a data frame
+  while (i <= ncol(ff_imdb)) {
+    midformula = paste(as.character(bestformula), colnames(ff_imdb)[i], sep = " + ")
+    midmodel = lm(as.formula(midformula), data = ff_imdb)
+    midres = summary(midmodel)$adj.r.squared
+    
+    if (midres > result) {
+      result = midres
+      resformula = midformula
+      resmodel = midmodel
+    }
+    i = i + 1 
+  }
+  
+  if (result > bestresult) {
+    bestformula = resformula
+    cycle = cycle + 1
+  } else {
+    break
+  }
+}
+
+best_imdb_fwd_model = lm(bestformula, data = ff_imdb)
+summary(best_imdb_fwd_model)
+```
+
+As a result, we come up with a model **`r bestformula`** with adjusted R^2^ of **`r summary(best_imdb_fwd_model)$adj.r.squared`** which is slightly higher than that of a full model (`r summary(imdb_full)$adj.r.squared`). However, we can see that some of the variables have  a p-value above the significance level of 5%. The order of certain variable in the formula tells us about its impact on the adjusted R^2^ (the earlier in the formula, the greater the impact).    
+
+
+Let's try a backward elimination technique and compare the resulting model with the model above. **Backward elimination** starts with the model that includes all potential predictor variables. Variables are eliminated one-at-a-time from the model until we cannot improve the adjusted R^2^. At each step we eliminate the variable that leads to the largest improvement in adjusted R^2^.
+
+```{r}
+#predictors <- model.matrix(imdb_full)[,-1] # move the names of the predictors to matrix 
+bwrd_bestpredictors = c("genre", "runtime", "mpaa_rating", "thtr_rel_year", "thtr_rel_month", "dvd_rel_year", "dvd_rel_month", "imdb_num_votes", "best_pic_nom", "best_pic_win", "best_actor_win", "best_actress_win", "best_dir_win", "top200_box")
+midpredictors = bwrd_bestpredictors
+bwrd_result <- summary(imdb_full)$adj.r.squared
+test_predictors = c()
+
+while (length(bwrd_bestpredictors) > 0) {
+  i = 1 
+  adjr2 = c()
+  while (i <= length(midpredictors)) {
+    test_predictors = midpredictors[-(i)]
+    midformula = as.formula(paste("imdb_rating ~ ", paste(test_predictors, collapse = " + "), sep = ""))
+    midmodel = lm(midformula, data = ff_imdb)
+    midres = summary(midmodel)$adj.r.squared
+    adjr2 = append(adjr2, midres, after = length(adjr2))
+    i = i + 1 
+    }
+
+  if (max(adjr2) > bwrd_result) {
+    midpredictors = midpredictors[-(which.max(adjr2))]
+    bwrd_bestpredictors = midpredictors
+    bwrd_result = max(adjr2)
+  } else {break}
+}
+
+bwrd_bestformula = as.formula(paste("imdb_rating ~ ", paste(bwrd_bestpredictors, collapse = " + "), sep = ""))
+imdb_bwrd_best_model = lm(bwrd_bestformula, data = ff_imdb)
+summary(imdb_bwrd_best_model)
+
+```
+
+We came up to **the same model** using backward elimination technique. We should run a diagnostic for the following predictors included in a model:
+
+**`r bwrd_bestpredictors`**
+
+
+
+```{r eval=FALSE, , fig.show='hide', include=FALSE, results='hide'}
+# This current chunk won't be included in the knit as the followng techniques are not part of the Duke's course.
+
+# Best subsets is a technique that relies on stepwise regression to search, find and visualise regression models.
+
+library(leaps)
+
+subsets <- regsubsets(imdb_rating ~ ., ff_imdb, nvmax = 30, method = "backward")
+
+plot(subsets, scale = "adjr2") +
+  title("Plot 14. ")
+
+#with(summary(subsets), data.frame(adjr2, outmat))
+#best_model <- summary(subsets)$which[which((summary(subsets)$adjr2 == max(summary(subsets)$adjr2))),]
+
+coef(subsets, which.max(summary(subsets)$adjr2))
+max(summary(subsets)$adjr2)
+summary(subsets)$adjr2
+
+leaps_subsets <- leaps(x = predictors, y = na.omit(ff)$imdb_rating, method = "adjr2")
+widx = which.max(leaps_subsets$adjr2)
+xidx = (1:ncol(predictors))[leaps_subsets$which[widx,]]
+Xin = data.frame(predictors[,xidx])
+best_model <- lm(na.omit(ff)$imdb_rating ~ . , data=Xin)
+summary(best_model)
+summary(best_model)$adj.r.squared
+```
+
+```{r}
+library(olsrr)
+
+imdb_backward_p <- ols_step_backward_p(imdb_full, details = F, p = 0.05)
+```
+
+
+
 
 * * *
 
