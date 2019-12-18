@@ -17,6 +17,7 @@ library(ggplot2)
 library(dplyr)
 library(statsr)
 library(GGally)
+library(kableExtra) # create nice looking tables
 ```
 
 ### Load data
@@ -57,7 +58,9 @@ We start our analysis with a high level overview of the data frame provided. The
 ```{r}
 movies %>%
   group_by(title_type) %>%
-  summarise(n(), min(thtr_rel_year), max(thtr_rel_year), median(imdb_rating), median(audience_score))
+  summarise(n(), min(thtr_rel_year), max(thtr_rel_year), median(imdb_rating), median(audience_score)) %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "condensed", "responsive"), full_width = F)
 ```
 *Table 1. Movies statistics grouped by the tytle type*  
   
@@ -103,7 +106,9 @@ Let's take a look at the median statistics for feature films grouped by genre:
 ```{r}
 ff %>%
   group_by(genre) %>%
-  summarise(total = n(), IMDb = median(imdb_rating), RT_critics = median(critics_score), RT_audience = median(audience_score))
+  summarise(total = n(), IMDb = median(imdb_rating), RT_critics = median(critics_score), RT_audience = median(audience_score)) %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "condensed", "responsive"))
 ```
 *Table 2. Feature Films rating and scores medians by genre*
 
@@ -122,7 +127,7 @@ Here we can see a right skewed unimodal distribution centered around 100 minutes
 
 ## Part 4: Modeling
 
-The data set contains several variables on movies: title, runtime, date of release, production company, cast, nominations, ratings, and scores. We'd love to predict the popularity of the movie (represented by the IMDb rating, Rotten Tomatoes critics and audience scores) based on a certain combination of the rest of the variables using a multiple linear regression method.
+The data set contains several variables on movies: title, runtime, date of release, production company, cast, nominations, ratings, and scores. We'd love to predict the popularity of the movie (represented by the IMDb rating) based on a certain combination of the rest of the variables using a multiple linear regression method.
 
 We will start with modelling where response variable is IMDb rating (`imdb_rating`).
 
@@ -138,6 +143,7 @@ Here's a list of variables we can ommit:
 * We can omit the `title_type` variable as we only work with Feature Film here.
 * The actual day of the month of the theatrical (`thtr_rel_day`) or dvd (`dvd_rel_day`) release is also meanengless for predicting movie's popularity. We can think of some correlation between a month or year and a movie popularity. We suspect it's going to be low if any, though. 
 * We should also omit `critics_rating` and `audience_rating` variables as they are basically the derivatives of `critics_score` and `audience_score` variables respectively. So, they are obviously collinear and adding more than one of these variables to the model would not add much value to the model.
+* We suspect a collinearity between `best_pic_nom` and `best_pic_win` variables. Obviously, movie can't win Oscar without being nominated. We should remove one of the variables, say, `best_pic_win` then.
 
 The question is **whether we should use Rotten Tomatoes scores in predicting IMDb rating** and vice versa. Technically speaking, a popular movie would rate high on both platforms (it's not always the case, though). This means that rating on IMDb would have a positive correlation with audience score on RT despite the fact they are calculated differently. We can check if this is the case by calculating a correlation coefficient:
 
@@ -167,7 +173,8 @@ ggplot(data = m_obs, aes(x = .resid)) +
 
 ggplot(data = m_obs, aes(sample = .resid)) +
   stat_qq(col = "orange") +
-  ggtitle("Plot 9. Normal probability plot of the residuals")
+  ggtitle("Plot 9. Normal probability plot of the residuals") +
+  geom_abline(colour = "blue")
 
 ```
 
@@ -178,29 +185,29 @@ The previous assumption is even more apparent with RT critics score and critics 
 ```{r}
 ff %>%
   ggplot(aes(y = imdb_rating*10, x = critics_score)) +
-  geom_jitter(col = 'orange') +
+  geom_jitter(col = 'orange', alpha = 0.7) +
   labs(title = 'Plot 10. Correlation plot for IMDb rating and RT critics score') +
   geom_smooth(method = lm)
 
 m_obs3 <- lm(imdb_rating ~ critics_score, data = ff)
 
 ggplot(data = m_obs3, aes(x = .fitted, y = .resid)) +
-  geom_jitter() +
+  geom_jitter(col = 'orange', alpha = 0.7) +
   geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(title = "Plot 11. Residuals vs fitted for imdb_rating/critics_score pair", xlab = "Fitted values", ylab = "Residuals")
+  labs(title = "Plot 11. Residuals vs fitted for imdb_rating/critics_score pair", x = "Fitted values", y = "Residuals")
 
 ff %>%
   ggplot(aes(y = imdb_rating*10, x = critics_rating)) +
-  geom_jitter(col = 'orange') +
+  geom_jitter(col = 'orange', alpha = 0.7) +
   labs(title = 'Plot 12. Correlation plot for IMDb rating and RT critics rating') +
   geom_smooth(method = lm)
 
 m_obs4 <- lm(imdb_rating ~ critics_rating, data = ff)
 
 ggplot(data = m_obs4, aes(x = .fitted, y = .resid)) +
-  geom_jitter() +
+  geom_jitter(col = 'orange', alpha = 0.7) +
   geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(title = "Plot 13. Residuals vs fitted for imdb_rating/critics_rating pair", xlab = "Fitted values", ylab = "Residuals")
+  labs(title = "Plot 13. Residuals vs fitted for imdb_rating/critics_rating pair", x = "Fitted values", y = "Residuals")
 ```
 
 The funnels we see is a perfect illustration of non-constant variability described earlier. Thus **we shouldn't be using RT scores in predicting IMDb rating using multiple linear regression**.  
@@ -208,7 +215,7 @@ The funnels we see is a perfect illustration of non-constant variability describ
 The **full model** should then look like this:
 
 ```{r}
-imdb_full <- lm(data = na.omit(ff), imdb_rating ~ genre + runtime + mpaa_rating + thtr_rel_year + thtr_rel_month + dvd_rel_year + dvd_rel_month + imdb_num_votes + best_pic_nom + best_pic_win + best_actor_win + best_actress_win + best_dir_win + top200_box)
+imdb_full <- lm(data = na.omit(ff), imdb_rating ~ genre + runtime + mpaa_rating + thtr_rel_year + thtr_rel_month + dvd_rel_year + dvd_rel_month + imdb_num_votes + best_pic_nom + best_actor_win + best_actress_win + best_dir_win + top200_box)
 
 summary(imdb_full)
 ```
@@ -222,7 +229,7 @@ We'll be using a **forward selection** technique here. The forward selection mod
 
 # Create a subset of data that only includes variables we're interested in
 
-ff_imdb <- subset(na.omit(ff), select = c("imdb_rating", "genre", "runtime", "mpaa_rating", "thtr_rel_year", "thtr_rel_month", "dvd_rel_year", "dvd_rel_month", "imdb_num_votes", "best_pic_nom", "best_pic_win", "best_actor_win", "best_actress_win", "best_dir_win", "top200_box"))
+ff_imdb <- subset(na.omit(ff), select = c("imdb_rating", "genre", "runtime", "mpaa_rating", "thtr_rel_year", "thtr_rel_month", "dvd_rel_year", "dvd_rel_month", "imdb_num_votes", "best_pic_nom", "best_actor_win", "best_actress_win", "best_dir_win", "top200_box"))
 
 bestformula <- "imdb_rating ~" #starting point
 
@@ -264,7 +271,7 @@ Let's try a backward elimination technique and compare the resulting model with 
 
 ```{r}
 #predictors <- model.matrix(imdb_full)[,-1] # move the names of the predictors to matrix 
-bwrd_bestpredictors = c("genre", "runtime", "mpaa_rating", "thtr_rel_year", "thtr_rel_month", "dvd_rel_year", "dvd_rel_month", "imdb_num_votes", "best_pic_nom", "best_pic_win", "best_actor_win", "best_actress_win", "best_dir_win", "top200_box")
+bwrd_bestpredictors = c("genre", "runtime", "mpaa_rating", "thtr_rel_year", "thtr_rel_month", "dvd_rel_year", "dvd_rel_month", "imdb_num_votes", "best_pic_nom", "best_actor_win", "best_actress_win", "best_dir_win", "top200_box")
 midpredictors = bwrd_bestpredictors
 bwrd_result <- summary(imdb_full)$adj.r.squared
 test_predictors = c()
@@ -294,10 +301,82 @@ summary(imdb_bwrd_best_model)
 
 ```
 
-We came up to **the same model** using backward elimination technique. We should run a diagnostic for the following predictors included in a model:
+We ended up with **the same model** using backward elimination technique. We should run a diagnostic for the following predictors included in a model:
 
-**`r bwrd_bestpredictors`**
+**`r bwrd_bestpredictors`**  
+  
 
+### Model diagnostics
+
+To assess whether the multiple regression model is reliable, we need to check for:
+  
+1. nearly normal residuals,
+2. constant variability of residuals,
+4. the residuals are independent, and
+4. each variable is linearly related to outcome.
+
+Let's take a look ath the **Normal probability plot of residuals** for our model.  
+
+```{r}
+ggplot(data = best_imdb_fwd_model, aes(sample = .resid)) +
+  stat_qq(col = "orange", alpha = 0.5) +
+  ggtitle("Plot 14. Normal probability plot of the residuals for IMDb rating prediction model") +
+  geom_abline(colour = "blue")
+```
+
+We can see some fluctuations from a normal model. They are not extreme, though. There are no outliers that might be cause of concern. In a normal probability plot for residuals, we tend to be most worried about residuals that appear to be outliers, since these indicate long tails in the distribution of residuals.
+
+**Absolute values of residuals against fitted values.** The following plot is helpful to check the condition that the variance of the residuals is approximately constant.
+
+```{r}
+ggplot(data = best_imdb_fwd_model, aes(x = round(.fitted, 0), y = abs(.resid))) +
+  geom_jitter(col = 'orange', alpha = 0.7) +
+  labs(title = "Plot 15. Absolute values of residuals vs fitted for IMDb rating model", x = "Fitted values of IMDb rating (rounded to the nearest whole number)", y = "Absolute values of residuals")
+```
+
+We don't see any obvious deviations from constant variance in this plot. As there are not many movies with IMDb ratings around 8, 9, or 10 in the data set, we don't know if the variance for these values remains constant. However, there is no evedence that it doesn't based on the data we have.
+
+**Residuals in order of their data collection.** Such a plot is helpful in identifying any connection between cases that are close to one another. If it seems that consecutive observations tend to be close to each other, this indicates the independence assumption of the observations would fail. We know that the data set represents a random selection of movies, so we don't expect any problems here.
+
+```{r}
+plot(best_imdb_fwd_model$residuals, main = "Plot 16. Residuals in order of their data collection", xlab = "Order", ylab = "Residuals", col = "orange")
+```
+
+As expected, here we see no structure that indicates a problem.
+
+Last thing we need to check is **Residuals against each predictor variable.** The first row of the graphics below shows the residual plots:   
+
+```{r fig.height=7, fig.width=14, message=FALSE, warning=FALSE, out.height=1200, out.width=2400}
+#ggscatmat(ff_imdb, columns = c("imdb_rating", "imdb_num_votes", "runtime", "thtr_rel_year", "dvd_rel_month"), alpha = 0.5)
+
+ggnostic(imdb_bwrd_best_model, mapping = ggplot2::aes(color = imdb_rating)) +
+  labs(title = "Plot 17. Residuals of the model against each predictor variable")
+```
+
+Let's look at the **categorical variables** first. For the `genre` variable we see a lot of deviations from constant variability between different genres here. The variability among the groups in `mpaa_rating` seems a little bit more constant. For example, Unrated movies (there are only 16 of them in a data frame) have significantly less variability than others and NC-17 has no variability at all (in fact, there's only one movie of this category in a data set). Besides that, this variable look ok. Both `best_pic_nom`, `best_dir_win` variables show the inconstant variability (the latter in a lesser extent, though). On the one hand this can be explained by a significantly smaller number of movies or directors that have been nominated for Oscar. However, the reals reason is not clear from the data. 
+
+The **numerical variables** show more uniformity overall. With theatrical release year (`thtr_rel_year`) and DVD release year (`dvd_rel_year`) we don't see a structure (distribution around 0 seems to be random). There might be some remaining structure in the DVD release month variable, though. We can see a little 'wave' going up and down here. There's a clear 'funneling' in both `runtime` and `imdb_num_votes` variables. For instance, in the IMDb number of votes, prediction for the movies with lower number of votes has lower accuracy (larger difference between predicted and observed value) than for those with large number of votes - this is not something unexpected as point estimate is getting closer to the actual population parameter as the sample size increases. It's harder to explain why the accuracy of the model goes down for the shorter movies, though.
+
+It's worth mentioning that the following variables have the p-value above the significance level of 5%: `best_dir_win`, `best_pic_nom`, `dvd_rel_year`, and `dvd_rel_month`. 
+  
+  
+### Interpretation of model coefficients
+
+Table below shows the coefficients (or point estimates of the coefficients) for each predictor in our model. 
+
+```{r}
+summary(imdb_bwrd_best_model)$coeff %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), fixed_thead = T)
+```
+
+In this case Intercept is a point where regression line intercepts the y-axis represented by `imdb_rating`. The coefficient of 0.0055 for `runtime` variable means that the average difference in IMDb rating for each additional minute of a runtime is +0.0055 when **holding the other variables constant**.
+
+We can see that some of the variables have larger impact on the IMDb rating. For example, if MPAA rating of a movie is PG-13 ("Parental Guidance: some material may be inappropriate for children 13 and under") reduces the IMDb rating of the movie by 0.8. A movie in Musical & Performing Arts category increses the rating by 1.19. It's a largest single factor.
+
+The number of votes on IMDb (`imdb_num_votes`) seems to be having the least impact on the movie's IMDb rating: each additional vote adds up only 0.0000035 to the rating. A movie needs a million votes to see a rating increased by 3.5. Considering that a movie in our data set gets on average only 62,861 votes the impact on the rating is not very large (0.22 on average).
+
+As expected, both the DVD release year and month have just a tiny impact on IMDb rating (if any, considering their p-values above the significance level). The Best picture nomination adds up 0.38 to the rating.
 
 
 ```{r eval=FALSE, , fig.show='hide', include=FALSE, results='hide'}
@@ -328,7 +407,7 @@ summary(best_model)
 summary(best_model)$adj.r.squared
 ```
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 library(olsrr)
 
 imdb_backward_p <- ols_step_backward_p(imdb_full, details = F, p = 0.05)
@@ -341,11 +420,27 @@ imdb_backward_p <- ols_step_backward_p(imdb_full, details = F, p = 0.05)
 
 ## Part 5: Prediction
 
-NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
-button above. Make sure that your code is visible in the project you submit. 
-Delete this note when before you submit your work.
+To check our model's prediction accuracy we picked a movie that is not in the initial data set and that was released in 2016. This movie is **"La La Land"** (IMDb link: www.imdb.com/title/tt3783958/). As of December 17, 2019 it has an IMDb rating of 8.0 and 456,399 votes. The movie and its director, Damiene Chazelle, were both nominated and won Oscars in 2017. The rest of the parameters has been combined in a data frame `lalaland`.
+
+We use a `predict` function and use both our model and the `lalaland` data as an input:
+
+```{r}
+lalaland <- data.frame(genre = "Comedy", runtime = 128, mpaa_rating = "PG-13", thtr_rel_year = 2016, dvd_rel_year = 2017, dvd_rel_month = 4, imdb_num_votes = 456399, best_pic_nom = "yes", best_dir_win = "yes")
+lalaland_prediction <- predict(imdb_bwrd_best_model, lalaland, interval = "prediction", level = 0.95)
+lalaland_prediction
+```
+
+The **model predicts an IMDb rating of 7.35** for this movie. The actual rating is 8.0. This means that model underestimated real rating. The `lwr` and `upr` values show lower and upper bounds of a confidence interval of the prediction with a confidence level of 95%. We're 95% confident that the actual IMDb rating of this movie is between 5.62 and 9.07. The interval is quite wide. This in fact agrees with the adjusted R^2^ value of 0.3644 meaning that only 36.44% of the variation in rating is explained by the model. 
+
+We use a movie released in 2016 despite the fact that our model is based on data about movies released before 2016. This implyes an extrapolation which makes our prediction even less reliable. 
 
 * * *
 
 ## Part 6: Conclusion
+
+In this research, we used factual data on 600+ movies and built a multiple regression model that predicts IMDb rating. The Adjusted R^2^ was used as estimate of explained variance. We tried two techniques of stepwise model selection (forward selection and backward elimination) which came up with the same model that explains approximately 36.44% of variation in movie popularity measured by IMDb rating. 
+
+Answering the research question, we can predict the popularity of a movie without watching it but to a certain limited extent.
+
+Fortunately for us, movie lovers, the popularity of a certain piece of art is based on something that is hard to measure and categorize. And this 'something' explains a good part of those remaining 63.56%. 
 
