@@ -1,6 +1,5 @@
 # IMDb Rating modeling with multiple linear regression
 
-title: "Modeling and prediction for movies"  
 author: Valeriy Kondruk
 
 ## Without watching a movie, can we say whether the audience loves it?
