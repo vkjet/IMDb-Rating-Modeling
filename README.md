@@ -1,4 +1,4 @@
-# IMDb Modelling
+# IMDb Modeling
 
 title: "Modeling and prediction for movies"  
 author: Valeriy Kondruk
