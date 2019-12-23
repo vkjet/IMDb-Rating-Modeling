@@ -1,4 +1,4 @@
-# IMDb Modeling
+# IMDb Rating modeling with multiple linear regression
 
 title: "Modeling and prediction for movies"  
 author: Valeriy Kondruk
