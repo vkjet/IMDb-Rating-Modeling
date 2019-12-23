@@ -1,6 +1,6 @@
-# IMDb_Modelling
+# IMDb Modelling
 
-title: "Modeling and prediction for movies"
+title: "Modeling and prediction for movies"  
 author: Valeriy Kondruk
 
 ## Without watching a movie, can we say wether the audience love it?
