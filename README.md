@@ -1,2 +1,8 @@
-# Rotten_Tomatoes_Modelling
-What attributes make a movie popular? 
+# IMDb_Modelling
+
+title: "Modeling and prediction for movies"
+author: Valeriy Kondruk
+
+## Without watching a movie, can we say wether the audience love it?
+
+Obviously, the popularity of a movie is mainly based on its content and the art value it offers. Those two factors are very hard if not impossible to calculate, though. However, there are certain characteristics of a movie that we can calculate and classify comparatively easy. Among others, those are genre, duration, and a cast quality. Using those and other variables from the data frame, we'll try creating a prediction model for a movie papularity among the audience.
