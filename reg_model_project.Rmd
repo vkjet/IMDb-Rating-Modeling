@@ -444,3 +444,45 @@ Answering the research question, we can predict the popularity of a movie withou
 
 Fortunately for us, movie lovers, the popularity of a certain piece of art is based on something that is hard to measure and categorize. And this 'something' explains a good part of those remaining 63.56%. 
 
+
+
+# H20 Machine Learning Tests
+
+```{r}
+# The following two commands remove any previously installed H2O packages for R.
+# if ("package:h2o" %in% search()) { detach("package:h2o", unload=TRUE) }
+# if ("h2o" %in% rownames(installed.packages())) { remove.packages("h2o") }
+# 
+# # Next, we download packages that H2O depends on.
+# pkgs <- c("RCurl","jsonlite")
+# for (pkg in pkgs) {
+# if (! (pkg %in% rownames(installed.packages()))) { install.packages(pkg) }
+# }
+# 
+# # Now we download, install and initialize the H2O package for R.
+# install.packages("h2o", type="source", repos="http://h2o-release.s3.amazonaws.com/h2o/rel-yu/1/R")
+
+# Finally, let's load H2O and start up an H2O cluster
+library(h2o)
+h2o.init()
+
+ff_imdb_h2o <- as.h2o(ff_imdb)
+ff_imdb_h2o[,1] <- as.factor(ff_imdb_h2o[,1])
+parts <- h2o.splitFrame(ff_imdb_h2o, 0.8)
+train <- parts[[1]]
+test <- parts[[2]]
+
+summary(train)
+nrow(train)
+nrow(test)
+
+mDL <- h2o.deeplearning(2:14,1,train)
+
+mDL
+
+h2o.confusionMatrix(mDL, ff_imdb_h2o) %>%
+ kable() %>%
+ kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), fixed_thead = T)
+
+```
+
