@@ -466,9 +466,15 @@ Fortunately for us, movie lovers, the popularity of a certain piece of art is ba
 library(h2o)
 h2o.init()
 
-ff_imdb_h2o <- as.h2o(ff_imdb)
-ff_imdb_h2o[,1] <- as.factor(ff_imdb_h2o[,1])
-parts <- h2o.splitFrame(ff_imdb_h2o, 0.8)
+# Let's do some tweaks to our data set. We want to round our imdb rating column to avoid very large Confusion Matrix (instead of showing five rows 8.0, 8.1, 8.2, 8.3, 8.4 we would only have 8.0). Hopefully prediction model would also improve.
+
+ff_imdb_rnd <- ff_imdb %>%
+  mutate(imdb_rating_rounded = round(imdb_rating)) %>%
+  select(imdb_rating, imdb_rating_rounded, everything())
+
+ff_imdb_h2o <- as.h2o(ff_imdb_rnd)
+ff_imdb_h2o[,2] <- as.factor(ff_imdb_h2o[,2])
+parts <- h2o.splitFrame(ff_imdb_h2o, 0.9)
 train <- parts[[1]]
 test <- parts[[2]]
 
@@ -476,13 +482,17 @@ summary(train)
 nrow(train)
 nrow(test)
 
-mDL <- h2o.deeplearning(2:14,1,train)
+mDL <- h2o.deeplearning(3:15,2,train)
 
 mDL
 
-h2o.confusionMatrix(mDL, ff_imdb_h2o) %>%
+h2o.confusionMatrix(mDL) %>%
  kable() %>%
  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), fixed_thead = T)
 
+# p <- h2o.predict(mDL, test)
+# p
+
+h2o.performance(mDL, test)
 ```
 
