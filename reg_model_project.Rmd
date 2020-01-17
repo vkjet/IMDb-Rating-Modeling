@@ -474,7 +474,7 @@ ff_imdb_rnd <- ff_imdb %>%
 
 ff_imdb_h2o <- as.h2o(ff_imdb_rnd)
 ff_imdb_h2o[,2] <- as.factor(ff_imdb_h2o[,2])
-parts <- h2o.splitFrame(ff_imdb_h2o, 0.9)
+parts <- h2o.splitFrame(ff_imdb_h2o, 0.8)
 train <- parts[[1]]
 test <- parts[[2]]
 
@@ -494,5 +494,20 @@ h2o.confusionMatrix(mDL) %>%
 # p
 
 h2o.performance(mDL, test)
+```
+
+
+```{r}
+aML <- h2o.automl(3:15,2,train, max_runtime_secs = 600)
+
+aML_leaderboard <- aML@leaderboard
+print(aML_leaderboard, n = nrow(aML_leaderboard))
+
+aML_leader <- aML@leader
+#aML_leader
+
+#h2o.predict(aML, test)
+
+h2o.performance(aML_leader, test)
 ```
 
