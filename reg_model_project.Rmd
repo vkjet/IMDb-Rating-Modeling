@@ -511,3 +511,41 @@ aML_leader <- aML@leader
 h2o.performance(aML_leader, test)
 ```
 
+
+Here, we try to get a better model by training on all variables (excluding those related to Rotten Tomatoes) without manually excluding some of them as we did for linear regression tests.
+```{r}
+movies_edited <- movies %>%
+  mutate(imdb_rating_rounded = round(imdb_rating)) %>%
+  select(imdb_rating, critics_rating, critics_score, audience_rating, audience_score, everything())
+
+movies_h2o <- as.h2o(movies_edited)
+movies_h2o[,33] <- as.factor(movies_h2o[,33])
+movies_h2o[,1] <- as.factor(movies_h2o[,1])
+parts1 <- h2o.splitFrame(movies_h2o, 0.8)
+train1 <- parts1[[1]]
+test1 <- parts1[[2]]
+
+aML_movies <- h2o.automl(6:32, 33, train1, max_runtime_secs = 120)
+aML_leaders <- aML_movies@leaderboard
+print(aML_leaders, n = nrow(aML_leaders))
+
+aML_leader1 <- aML_movies@leader
+h2o.performance(aML_leader1, test1)
+
+```
+
+We ran several ML tests and the most interesting result so far is that `studio` is the second most important variable explaining movie popularity on IMDb. In our linear regression analysis we excluded this variable because it has over 100 different values so the regression process would take too long. With machine learning we don't have this issue. 
+
+*Gradient Boosting Machine* (or `GBM`) model returns the most impressive results on training dataset with 0 errors. On the test data it has an error in around 40% of cases. It seems like we deal with overfitting problem here. Further tests needed.
+
+Let's build a standalone GBM model
+```{r}
+gbm <- h2o.gbm(6:32, 1, training_frame = train1)
+## Show a detailed model summary
+gbm
+## Get the performance on the test set
+h2o.performance(gbm, newdata = test1) 
+
+
+```
+
