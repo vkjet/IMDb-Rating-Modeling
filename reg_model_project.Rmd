@@ -18,6 +18,7 @@ library(dplyr)
 library(statsr)
 library(GGally)
 library(kableExtra) # create nice looking tables
+library(plyr)
 ```
 
 ### Load data
@@ -521,11 +522,11 @@ movies_edited <- movies %>%
 movies_h2o <- as.h2o(movies_edited)
 movies_h2o[,33] <- as.factor(movies_h2o[,33])
 movies_h2o[,1] <- as.factor(movies_h2o[,1])
-parts1 <- h2o.splitFrame(movies_h2o, 0.8)
+parts1 <- h2o.splitFrame(movies_h2o, 0.7)
 train1 <- parts1[[1]]
 test1 <- parts1[[2]]
 
-aML_movies <- h2o.automl(6:32, 33, train1, max_runtime_secs = 120)
+aML_movies <- h2o.automl(6:32, 33, train1, max_runtime_secs = 180, nfolds = 15)
 aML_leaders <- aML_movies@leaderboard
 print(aML_leaders, n = nrow(aML_leaders))
 
@@ -536,11 +537,19 @@ h2o.performance(aML_leader1, test1)
 
 We ran several ML tests and the most interesting result so far is that `studio` is the second most important variable explaining movie popularity on IMDb. In our linear regression analysis we excluded this variable because it has over 100 different values so the regression process would take too long. With machine learning we don't have this issue. 
 
-*Gradient Boosting Machine* (or `GBM`) model returns the most impressive results on training dataset with 0 errors. On the test data it has an error in around 40% of cases. It seems like we deal with overfitting problem here. Further tests needed.
+*Gradient Boosting Machine* (or `GBM`) model returns the most impressive results on training dataset with 0 errors. On the test data it has an error in around 50% of cases. It seems like we deal with overfitting problem here (or our interpretation of output is incorrect) . Further tests needed.
 
 Let's build a standalone GBM model
 ```{r}
-gbm <- h2o.gbm(6:32, 1, training_frame = train1)
+gbm <- h2o.gbm(6:32, 33, training_frame = train1, ntrees = 300, 
+  ## sample 80% of rows per tree
+  sample_rate = 0.8,                                                       
+  ## sample 80% of columns per split
+  col_sample_rate = 0.8,                                                   
+  ## fix a random number generator seed for reproducibility
+  seed = 1234,
+  ## let's try to use 'stumps' instead of 'bushy' trees
+  max_depth = 1)
 ## Show a detailed model summary
 gbm
 ## Get the performance on the test set
@@ -548,4 +557,8 @@ h2o.performance(gbm, newdata = test1)
 
 
 ```
+
+We did numerous experiments with GBM and the best result we came up with is the model that offers approximately 43.75% errors on test dataset. The model used the maximum number of trees of 58 and the tree depth of 1 (stumps). However, re-splitting the data made this model less more effective. It had around 66% of errors on a test data. So we needed to readjust the model using different number of trees to reduce the error rate. 
+
+One thing worth mentioning, majority of models we tested did pretty good job in a sense of deviation around true value. In most cases, predicted values are off just by one point (module of residual is equal to 1). For example, the true value is 7, the model predicts either 6 or 8 (not 3 or 9, for example). So it might be a better idea of creating a confidence interval for the predictions instead of reporting errors each time predictor is off by one point. It could be something like predictor ±1. Further research is needed.
 
