@@ -513,7 +513,7 @@ h2o.performance(aML_leader, test)
 ```
 
 
-Here, we try to get a better model by training on all variables (excluding those related to Rotten Tomatoes) without manually excluding some of them as we did for linear regression tests.
+Here, we try to get a better model by training on all variables (excluding those related to Rotten Tomatoes) without manually excluding any of them as we did for linear regression tests.
 ```{r}
 movies_edited <- movies %>%
   mutate(imdb_rating_rounded = round(imdb_rating)) %>%
@@ -522,11 +522,11 @@ movies_edited <- movies %>%
 movies_h2o <- as.h2o(movies_edited)
 movies_h2o[,33] <- as.factor(movies_h2o[,33])
 movies_h2o[,1] <- as.factor(movies_h2o[,1])
-parts1 <- h2o.splitFrame(movies_h2o, 0.7)
+parts1 <- h2o.splitFrame(movies_h2o, 0.8)
 train1 <- parts1[[1]]
 test1 <- parts1[[2]]
 
-aML_movies <- h2o.automl(6:32, 33, train1, max_runtime_secs = 180, nfolds = 15)
+aML_movies <- h2o.automl(6:32, 33, train1, max_runtime_secs = 30, nfolds = 15)
 aML_leaders <- aML_movies@leaderboard
 print(aML_leaders, n = nrow(aML_leaders))
 
@@ -541,7 +541,7 @@ We ran several ML tests and the most interesting result so far is that `studio` 
 
 Let's build a standalone GBM model
 ```{r}
-gbm <- h2o.gbm(6:32, 33, training_frame = train1, ntrees = 300, 
+gbm <- h2o.gbm(6:32, 33, training_frame = train1, ntrees = 80, 
   ## sample 80% of rows per tree
   sample_rate = 0.8,                                                       
   ## sample 80% of columns per split
@@ -558,7 +558,17 @@ h2o.performance(gbm, newdata = test1)
 
 ```
 
-We did numerous experiments with GBM and the best result we came up with is the model that offers approximately 43.75% errors on test dataset. The model used the maximum number of trees of 58 and the tree depth of 1 (stumps). However, re-splitting the data made this model less more effective. It had around 66% of errors on a test data. So we needed to readjust the model using different number of trees to reduce the error rate. 
+We did numerous experiments with GBM and the best result we came up with the model that offers approximately 43.75% errors on test dataset. The model used the maximum number of trees of 58 and the tree depth of 1 (stumps). However, re-splitting the data made this model less more effective. It had around 66% of errors on a test data. So we needed to readjust the model using different number of trees to reduce the error rate. 
 
 One thing worth mentioning, majority of models we tested did pretty good job in a sense of deviation around true value. In most cases, predicted values are off just by one point (module of residual is equal to 1). For example, the true value is 7, the model predicts either 6 or 8 (not 3 or 9, for example). So it might be a better idea of creating a confidence interval for the predictions instead of reporting errors each time predictor is off by one point. It could be something like predictor ±1. Further research is needed.
 
+
+Let's try using a Naive Bayes model. Naive Bayes performs relatively well for variables with multiple categories. The hard assumption is that predictive variables are all independent (which is not particularly true for our dataset).  
+```{r}
+nbM <- h2o.naiveBayes(6:32, 33, training_frame = train1)
+nbM
+
+h2o.performance(nbM, newdata = test1)
+```
+
+Indeed, Naive Bayes model showed a slightly hogher performance than the Gradient Boosting model. Naive Bayes is sensitive to missing values. It will skip the row with any missing value completely. There are not so many rows that have Na's in our dataset, though.
