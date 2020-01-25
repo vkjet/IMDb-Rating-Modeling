@@ -18,7 +18,7 @@ library(dplyr)
 library(statsr)
 library(GGally)
 library(kableExtra) # create nice looking tables
-library(plyr)
+#library(plyr)
 ```
 
 ### Load data
@@ -59,7 +59,7 @@ We start our analysis with a high-level overview of the data frame provided. The
 ```{r}
 movies %>%
   group_by(title_type) %>%
-  summarise(n(), min(thtr_rel_year), max(thtr_rel_year), median(imdb_rating), median(audience_score)) %>%
+  summarise(total = n(), min(thtr_rel_year), max(thtr_rel_year), median(imdb_rating), median(audience_score)) %>%
   kable() %>%
   kable_styling(bootstrap_options = c("striped", "condensed", "responsive"), full_width = F)
 ```
