@@ -572,3 +572,13 @@ h2o.performance(nbM, newdata = test1)
 ```
 
 Indeed, Naive Bayes model showed a slightly hogher performance than the Gradient Boosting model. Naive Bayes is sensitive to missing values. It will skip the row with any missing value completely. There are not so many rows that have Na's in our dataset, though.
+
+Another model we want to try is Random Forest. 
+
+```{r}
+rfM <- h2o.randomForest(6:32, 33, training_frame = train1, ntrees = 500, max_depth = 50)
+rfM
+
+h2o.performance(rfM, newdata = test1)
+```
+
